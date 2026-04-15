@@ -15,11 +15,13 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    openai_chat_temperature: float = 0.4
     openai_transcription_model: str = "whisper-1"
     openai_org_id: str | None = None
     max_audio_upload_mb: int = 24
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     checkpoint_sqlite_path: str = str(_BACKEND_DIR / "data" / "checkpoints.db")
+    session_sqlite_path: str = str(_BACKEND_DIR / "data" / "sessions.db")
 
 
 def get_settings() -> Settings:

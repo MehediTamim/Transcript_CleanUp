@@ -32,3 +32,27 @@ export type TranscribeResponse = {
   transcript: string
   segments: TranscriptionSegment[]
 }
+
+export type ChatMessageItem = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+}
+
+export type SessionDetailResponse = {
+  session_id: string
+  status: string
+  initial_transcript: string
+  finalized_content: string | null
+  created_at: string
+  messages: ChatMessageItem[]
+}
+
+export type SessionCreateResponse = {
+  session_id: string
+}
+
+export type FinalizeResponse = {
+  final_content: string
+}

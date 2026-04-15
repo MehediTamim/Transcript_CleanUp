@@ -49,7 +49,7 @@ cp backend/.env.example backend/.env
 # set OPENAI_API_KEY in backend/.env
 
 cd backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ## Frontend (Vite + React)

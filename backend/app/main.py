@@ -7,6 +7,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 
 from app.api.router import api_router
 from app.config import get_settings, parse_cors_origins
+from app.db.session_store import init_session_schema
 from app.graph.workflow import build_graph
 from app.services.runs_service import RunOrchestrator
 
@@ -31,7 +32,12 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    session_path = Path(settings.session_sqlite_path)
+    session_path.parent.mkdir(parents=True, exist_ok=True)
+    init_session_schema(str(session_path))
+
     app = FastAPI(title="Transcript Cleanup API", lifespan=lifespan)
+    app.state.session_sqlite_path = str(session_path)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=parse_cors_origins(settings.cors_origins),
