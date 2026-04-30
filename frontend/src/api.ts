@@ -122,3 +122,71 @@ export async function postSessionChatStream(
   }
   return {}
 }
+
+/** POST multipart to v2 pipeline: SSE `stage`, `delta`, `done`, or `error` (same line format as sessions). */
+export async function postV2AudioToCourtStream(
+  form: FormData,
+  callbacks: {
+    onStage?: (stage: string) => void
+    onDelta: (chunk: string) => void
+  },
+  language?: string | null,
+): Promise<{ error?: string }> {
+  const langTrim = language?.trim()
+  const q = langTrim ? `?language=${encodeURIComponent(langTrim)}` : ''
+  const res = await fetch(apiUrl(`/api/v2/audio-to-court/stream${q}`), {
+    method: 'POST',
+    body: form,
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      const j = (await res.json()) as { detail?: unknown }
+      if (typeof j.detail === 'string') detail = j.detail
+      else if (Array.isArray(j.detail) && j.detail.length > 0) {
+        const row = j.detail[0] as { msg?: unknown }
+        if (typeof row?.msg === 'string') detail = row.msg
+      }
+    } catch {
+      /* ignore */
+    }
+    return { error: detail || `HTTP ${res.status}` }
+  }
+  const reader = res.body?.getReader()
+  if (!reader) return { error: 'No response body' }
+
+  const dec = new TextDecoder()
+  let buffer = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += dec.decode(value, { stream: true })
+    let sep: number
+    while ((sep = buffer.indexOf('\n\n')) >= 0) {
+      const block = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+      for (const line of block.split('\n')) {
+        if (!line.startsWith('data:')) continue
+        const payload = line.replace(/^data:\s?/, '').trim()
+        if (!payload) continue
+        try {
+          const data = JSON.parse(payload) as {
+            delta?: string
+            done?: boolean
+            error?: string
+            stage?: string
+          }
+          if (typeof data.stage === 'string' && data.stage)
+            callbacks.onStage?.(data.stage)
+          if (typeof data.delta === 'string' && data.delta)
+            callbacks.onDelta(data.delta)
+          if (data.done) return {}
+          if (typeof data.error === 'string') return { error: data.error }
+        } catch {
+          /* ignore malformed chunk */
+        }
+      }
+    }
+  }
+  return {}
+}
