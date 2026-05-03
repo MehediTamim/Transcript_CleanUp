@@ -67,6 +67,7 @@ export default function AppV2() {
   const [error, setError] = useState<string | null>(null)
   const [languageHint, setLanguageHint] = useState('')
   const [copied, setCopied] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
   const setFriendlyError = useCallback((e: unknown) => {
     setError(friendlyMessage(e))
@@ -221,6 +222,13 @@ export default function AppV2() {
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setShowModal(true)}
+                  className="rounded-full border border-violet-500/30 bg-violet-950/40 px-3 py-1.5 text-xs font-medium text-violet-200 transition hover:bg-violet-900/50"
+                >
+                  View full transcript
+                </button>
+                <button
+                  type="button"
                   onClick={() => void onCopy()}
                   className="rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08]"
                 >
@@ -263,6 +271,64 @@ export default function AppV2() {
 
         </section>
       </div>
+
+      {/* Full transcript modal */}
+      {showModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl border border-white/[0.08] bg-zinc-900 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-6 py-4">
+              <h2 className="text-sm font-semibold text-white">Full court transcript</h2>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="flex size-8 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-zinc-100"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal body — full scrollable transcript */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-zinc-200">
+                {output}
+              </pre>
+            </div>
+
+            {/* Modal footer */}
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.06] px-6 py-3">
+              <button
+                type="button"
+                onClick={() => void onCopy()}
+                className="rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08]"
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+              <button
+                type="button"
+                onClick={onDownload}
+                className="rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08]"
+              >
+                Download
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-zinc-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </WorkspaceShell>
   )
 }

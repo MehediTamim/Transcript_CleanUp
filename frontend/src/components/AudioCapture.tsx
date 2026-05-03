@@ -1,10 +1,3 @@
-// 2026-05-01 — Reusable audio capture card. Two entry points (Upload / Record)
-// then a single "ready" state with a primary action provided by the parent
-// (transcribe-only on EditorPage, run-pipeline on HearingPage). The component
-// is intentionally controlled-ish: it owns the mic recorder and the picked
-// file, but bubbles the final Blob + filename to the parent via onReady so the
-// caller can decide what to do next.
-
 import { useEffect, useRef, useState } from 'react'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { friendlyMessage } from '../lib/errors'
@@ -12,19 +5,12 @@ import { btnGhost, btnDanger, btnPrimary, mutedText, subtleText } from '../lib/t
 import { Spinner } from './Spinner'
 
 export type AudioCaptureProps = {
-  // Disable the entire card (used while the parent is busy upstream).
   disabled?: boolean
-  // Label for the primary CTA shown when audio is ready (e.g. "Transcribe").
   primaryLabel: string
-  // Label shown while the parent is processing the ready blob.
   primaryBusyLabel?: string
-  // True while the parent's primary action is running.
   primaryBusy?: boolean
-  // Fired when the user clicks the primary CTA on a ready blob.
   onPrimary: (blob: Blob, filename: string) => void
-  // Bubble error messages up so the page can surface them in its own banner.
   onError?: (message: string) => void
-  // Compact mode shrinks vertical padding. Defaults to false.
   compact?: boolean
 }
 
@@ -42,16 +28,25 @@ export function AudioCapture({
   const [pickedLabel, setPickedLabel] = useState<string | null>(null)
   const [pickedBlob, setPickedBlob] = useState<Blob | null>(null)
   const [readingFile, setReadingFile] = useState(false)
-
-  // Forward recorder errors to the parent (translated to friendly text).
-  useEffect(() => {
-    if (recorder.error) onError?.(friendlyMessage(recorder.error))
-  }, [recorder.error, onError])
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
 
   // Whichever source produced audio last wins.
   const blob = pickedBlob ?? recorder.blob
   const filename = pickedLabel ?? 'recording.webm'
   const ready = !!blob && !recorder.recording
+
+  // Forward recorder errors to the parent.
+  useEffect(() => {
+    if (recorder.error) onError?.(friendlyMessage(recorder.error))
+  }, [recorder.error, onError])
+
+  // Create a playable object URL whenever the active blob changes, revoke the old one.
+  useEffect(() => {
+    if (!blob) { setAudioUrl(null); return }
+    const url = URL.createObjectURL(blob)
+    setAudioUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [blob])
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -133,20 +128,30 @@ export function AudioCapture({
       </div>
 
       {recorder.recording ? (
-        <p className={`text-center text-sm ${mutedText}`}>We&apos;re listening…</p>
+        <p className={`text-center text-sm ${mutedText}`}>We&apos;re listening&hellip;</p>
       ) : null}
 
       {readingFile ? (
         <p className="flex justify-center gap-2 text-sm text-zinc-400">
-          <Spinner className="text-violet-400" /> Reading file…
+          <Spinner className="text-violet-400" /> Reading file&hellip;
         </p>
       ) : null}
 
       {ready ? (
         <div className="rounded-2xl border border-white/[0.05] bg-black/25 p-4">
           <p className={`text-center text-xs ${subtleText}`}>
-            {pickedLabel ? `“${pickedLabel}”` : 'Recording'} ready
+            {pickedLabel ? `"${pickedLabel}"` : 'Recording'} ready
           </p>
+
+          {audioUrl ? (
+            <audio
+              controls
+              src={audioUrl}
+              className="mt-3 w-full rounded-lg"
+              aria-label="Preview audio"
+            />
+          ) : null}
+
           <button
             type="button"
             disabled={busy}
