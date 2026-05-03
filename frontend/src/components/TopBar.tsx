@@ -6,9 +6,8 @@
 // Status is intentionally a small visual chip rather than a noisy banner so it
 // stays out of the user's way once they understand the system.
 
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { SegmentedTabs } from './SegmentedTabs'
 
 export type WorkspaceStatus =
   | { kind: 'idle' }
@@ -20,16 +19,8 @@ export type WorkspaceStatus =
 
 type Props = {
   status?: WorkspaceStatus
-  // Right-aligned action(s), e.g. <button>New document</button>.
   actions?: ReactNode
 }
-
-type ModeId = 'editor' | 'hearing'
-
-const modeOptions = [
-  { id: 'editor' as const, label: 'Editor chat' },
-  { id: 'hearing' as const, label: 'Hearing pipeline' },
-]
 
 function statusVisual(status: WorkspaceStatus | undefined): {
   dot: string
@@ -58,9 +49,6 @@ function statusVisual(status: WorkspaceStatus | undefined): {
 }
 
 export function TopBar({ status, actions }: Props) {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const mode: ModeId = location.pathname.startsWith('/v2') ? 'hearing' : 'editor'
   const visual = statusVisual(status)
 
   return (
@@ -97,13 +85,6 @@ export function TopBar({ status, actions }: Props) {
           {visual.label}
         </div>
       </div>
-
-      <SegmentedTabs
-        options={modeOptions}
-        value={mode}
-        onChange={(id) => navigate(id === 'hearing' ? '/v2' : '/')}
-        ariaLabel="Workspace mode"
-      />
 
       <div className="flex items-center gap-2">{actions}</div>
     </div>
