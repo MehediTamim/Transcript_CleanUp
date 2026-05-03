@@ -182,7 +182,6 @@ export default function AppV2() {
               primaryBusyLabel="Running…"
               primaryBusy={busy}
               onPrimary={(blob, filename) => void runPipeline(blob, filename)}
-              onError={(m) => setError(m)}
             />
           </div>
 

@@ -8,7 +8,6 @@ export type AudioCaptureProps = {
   primaryBusyLabel?: string
   primaryBusy?: boolean
   onPrimary: (blob: Blob, filename: string) => void
-  onError?: (message: string) => void
   compact?: boolean
 }
 
@@ -18,7 +17,6 @@ export function AudioCapture({
   primaryBusyLabel = 'Working…',
   primaryBusy = false,
   onPrimary,
-  onError,
   compact = false,
 }: AudioCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)

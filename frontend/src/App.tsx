@@ -212,7 +212,6 @@ export default function App() {
       busy={busy}
       audioBusy={audioBusy}
       onTranscribeAudio={(blob, filename) => void transcribeAudio(blob, filename)}
-      onAudioError={(m) => setError(m)}
       finalContent={finalContent}
       onNewDocument={resetWorkspace}
     />

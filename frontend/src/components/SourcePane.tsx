@@ -42,7 +42,6 @@ type Props = {
   // Audio capture wiring (only used in 'empty' stage).
   audioBusy?: boolean
   onTranscribeAudio: (blob: Blob, filename: string) => void
-  onAudioError?: (message: string) => void
   // Final document content; only used in 'finalized' stage.
   finalContent?: string | null
   onNewDocument: () => void
@@ -55,7 +54,6 @@ export function SourcePane({
   busy = false,
   audioBusy = false,
   onTranscribeAudio,
-  onAudioError,
   finalContent,
   onNewDocument,
 }: Props) {
@@ -106,7 +104,6 @@ export function SourcePane({
                 primaryBusyLabel="Transcribing…"
                 primaryBusy={audioBusy}
                 onPrimary={onTranscribeAudio}
-                onError={onAudioError}
               />
             </div>
             <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-zinc-600">
