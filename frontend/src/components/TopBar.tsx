@@ -60,9 +60,9 @@ export function TopBar({ status, actions }: Props) {
           aria-label="Clarity home"
         >
           <span className="inline-flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-[11px] font-bold text-white shadow-lg shadow-violet-900/40">
-            C
+            N
           </span>
-          <span className="hidden sm:inline">Clarity</span>
+          <span className="hidden sm:inline">Nuntius</span>
         </Link>
         <span
           className="hidden h-5 w-px bg-white/10 sm:inline-block"
