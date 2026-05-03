@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { friendlyMessage } from '../lib/errors'
 import { btnGhost, btnPrimary, subtleText } from '../lib/tokens'
 import { Spinner } from './Spinner'
 
@@ -25,7 +24,6 @@ export function AudioCapture({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pickedLabel, setPickedLabel] = useState<string | null>(null)
   const [pickedBlob, setPickedBlob] = useState<Blob | null>(null)
-  const [readingFile, setReadingFile] = useState(false)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
 
   const blob = pickedBlob ?? null
@@ -40,20 +38,12 @@ export function AudioCapture({
     return () => URL.revokeObjectURL(url)
   }, [blob])
 
-  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
     setPickedLabel(f.name)
-    setReadingFile(true)
-    try {
-      const buf = await f.arrayBuffer()
-      setPickedBlob(new Blob([buf], { type: f.type || 'audio/webm' }))
-    } catch (err) {
-      onError?.(friendlyMessage(err))
-    } finally {
-      setReadingFile(false)
-    }
+    setPickedBlob(f) // File extends Blob — use directly to preserve MIME type
   }
 
   const clearAudio = () => {
@@ -61,7 +51,7 @@ export function AudioCapture({
     setPickedLabel(null)
   }
 
-  const busy = disabled || readingFile || primaryBusy
+  const busy = disabled || primaryBusy
 
   return (
     <div className={compact ? 'space-y-3' : 'space-y-4'}>
@@ -95,12 +85,6 @@ export function AudioCapture({
         </svg>
         Upload audio file
       </button>
-
-      {readingFile ? (
-        <p className="flex justify-center gap-2 text-sm text-zinc-400">
-          <Spinner className="text-violet-400" /> Reading file&hellip;
-        </p>
-      ) : null}
 
       {ready ? (
         <div className="rounded-2xl border border-white/[0.05] bg-black/25 p-4">
