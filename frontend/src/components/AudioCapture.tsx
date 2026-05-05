@@ -2,6 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { btnGhost, btnPrimary, subtleText } from '../lib/tokens'
 import { Spinner } from './Spinner'
 
+const SUPPORTED_MIME_TYPES = new Set([
+  'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/x-m4a', 'audio/m4a',
+  'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/webm', 'video/webm',
+  'audio/ogg', 'audio/flac', 'audio/x-flac', 'audio/aac',
+])
+const SUPPORTED_EXTENSIONS = new Set([
+  'mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm', 'ogg', 'flac', 'aac',
+])
+
+function isSupportedFile(file: File): boolean {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return SUPPORTED_MIME_TYPES.has(file.type) || SUPPORTED_EXTENSIONS.has(ext)
+}
+
 export type AudioCaptureProps = {
   disabled?: boolean
   primaryLabel: string
@@ -23,6 +37,7 @@ export function AudioCapture({
   const [pickedLabel, setPickedLabel] = useState<string | null>(null)
   const [pickedBlob, setPickedBlob] = useState<Blob | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
 
   const blob = pickedBlob ?? null
   const filename = pickedLabel ?? 'audio.webm'
@@ -40,6 +55,18 @@ export function AudioCapture({
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
+
+    if (!isSupportedFile(f)) {
+      const ext = f.name.split('.').pop()?.toUpperCase() ?? 'this format'
+      setFileError(
+        `"${f.name}" is not supported. Please upload an audio file (MP3, WAV, M4A, WEBM, OGG, FLAC, AAC).`
+      )
+      setPickedBlob(null)
+      setPickedLabel(null)
+      return
+    }
+
+    setFileError(null)
     setPickedLabel(f.name)
     setPickedBlob(f) // File extends Blob — use directly to preserve MIME type
   }
@@ -47,6 +74,7 @@ export function AudioCapture({
   const clearAudio = () => {
     setPickedBlob(null)
     setPickedLabel(null)
+    setFileError(null)
   }
 
   const busy = disabled || primaryBusy
@@ -83,6 +111,26 @@ export function AudioCapture({
         </svg>
         Upload audio file
       </button>
+
+      {fileError ? (
+        <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
+          <svg
+            className="mt-0.5 size-4 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+            />
+          </svg>
+          <span>{fileError}</span>
+        </div>
+      ) : null}
 
       {ready ? (
         <div className="rounded-2xl border border-white/[0.05] bg-black/25 p-4">
