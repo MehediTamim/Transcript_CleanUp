@@ -138,13 +138,17 @@ export function AudioCapture({
             {pickedLabel ? `"${pickedLabel}"` : 'File'} ready
           </p>
 
-          {audioUrl ? (
+          {audioUrl && pickedBlob && pickedBlob.size <= 20 * 1024 * 1024 ? (
             <audio
               controls
               src={audioUrl}
               className="mt-3 w-full rounded-lg"
               aria-label="Preview audio"
             />
+          ) : pickedBlob && pickedBlob.size > 20 * 1024 * 1024 ? (
+            <p className="mt-3 text-center text-xs text-zinc-500">
+              File too large for in-browser preview — will upload fine.
+            </p>
           ) : null}
 
           <button

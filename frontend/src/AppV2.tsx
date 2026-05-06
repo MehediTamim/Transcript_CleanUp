@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { postV2AudioToCourtStream } from './api'
+import { postChunkedAudioStream } from './api'
 import { AudioCapture } from './components/AudioCapture'
 import { ErrorBanner } from './components/ErrorBanner'
 import { Spinner } from './components/Spinner'
@@ -68,6 +68,8 @@ export default function AppV2() {
   const [languageHint, setLanguageHint] = useState('')
   const [copied, setCopied] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [totalChunks, setTotalChunks] = useState<number | null>(null)
+  const [doneChunks, setDoneChunks] = useState(0)
 
   const setFriendlyError = useCallback((e: unknown) => {
     setError(friendlyMessage(e))
@@ -81,17 +83,30 @@ export default function AppV2() {
       setStreamFinished(false)
       setPipelineStage(null)
       setTranscribeDone(false)
+      setTotalChunks(null)
+      setDoneChunks(0)
 
       const fd = new FormData()
       fd.append('file', blob, filename)
 
       const lang = languageHint.trim() || null
-      const err = await postV2AudioToCourtStream(
+      const err = await postChunkedAudioStream(
         fd,
         {
           onStage: (s) => {
             setPipelineStage(s)
-            if (s === 'formatting') setTranscribeDone(true)
+            if (s === 'formatting') {
+              setTranscribeDone(true)
+              setOutput('')
+            }
+          },
+          onTotalChunks: (n) => {
+            setTotalChunks(n)
+            setPipelineStage('transcribing')
+          },
+          onChunkDone: (_idx, _total, text) => {
+            if (text) setOutput((prev) => prev ? prev + '\n\n' + text : text)
+            setDoneChunks((n) => n + 1)
           },
           onDelta: (d) => setOutput((prev) => prev + d),
         },
@@ -128,19 +143,21 @@ export default function AppV2() {
 
   const status: WorkspaceStatus = error
     ? { kind: 'error' }
-    : pipelineStage === 'transcribing'
-      ? { kind: 'transcribing' }
-      : pipelineStage === 'formatting'
-        ? { kind: 'streaming', label: 'Formatting' }
-        : busy
-          ? { kind: 'streaming', label: 'Starting' }
-          : streamFinished
-            ? { kind: 'finalized' }
-            : { kind: 'idle' }
+    : pipelineStage === 'splitting'
+      ? { kind: 'streaming', label: 'Splitting' }
+      : pipelineStage === 'transcribing'
+        ? { kind: 'transcribing' }
+        : pipelineStage === 'formatting'
+          ? { kind: 'streaming', label: 'Formatting' }
+          : busy
+            ? { kind: 'streaming', label: 'Starting' }
+            : streamFinished
+              ? { kind: 'finalized' }
+              : { kind: 'idle' }
 
   // Step states derived from pipeline progress
   const step1: StepState =
-    pipelineStage === 'transcribing'
+    pipelineStage === 'splitting' || pipelineStage === 'transcribing'
       ? 'active'
       : transcribeDone || streamFinished
         ? 'done'
@@ -152,6 +169,13 @@ export default function AppV2() {
       : streamFinished
         ? 'done'
         : 'idle'
+
+  const step1Label =
+    pipelineStage === 'splitting'
+      ? 'Splitting audio into chunks…'
+      : totalChunks !== null
+        ? `Transcribing — ${doneChunks} / ${totalChunks} chunks done`
+        : 'Transcribing audio'
 
   const showSteps = busy || streamFinished
 
@@ -247,7 +271,7 @@ export default function AppV2() {
           {/* Step tracker — only shown once the pipeline has started */}
           {showSteps ? (
             <div className="mt-4 shrink-0 space-y-2.5 rounded-xl border border-white/[0.05] bg-black/20 px-4 py-3">
-              <StepRow step={1} label="Transcribing audio" state={step1} />
+              <StepRow step={1} label={step1Label} state={step1} />
               <StepRow step={2} label="Formatting as Veritext court transcript" state={step2} />
             </div>
           ) : null}

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     openai_transcription_model: str = "whisper-1"
     openai_org_id: str | None = None
     max_audio_upload_mb: int = 24
+    max_chunked_upload_mb: int = 500
+    chunk_duration_s: int = 600
+    max_parallel_chunks: int = 5
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     checkpoint_sqlite_path: str = str(_BACKEND_DIR / "data" / "checkpoints.db")
     session_sqlite_path: str = str(_BACKEND_DIR / "data" / "sessions.db")
