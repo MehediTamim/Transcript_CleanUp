@@ -57,7 +57,6 @@ export function AudioCapture({
     if (!f) return
 
     if (!isSupportedFile(f)) {
-      const ext = f.name.split('.').pop()?.toUpperCase() ?? 'this format'
       setFileError(
         `"${f.name}" is not supported. Please upload an audio file (MP3, WAV, M4A, WEBM, OGG, FLAC, AAC).`
       )
