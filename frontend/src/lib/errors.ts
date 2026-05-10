@@ -20,7 +20,7 @@ export function humanizeError(message: string): string {
   if (m.includes('413') || m.includes('too large'))
     return 'That file is a bit too large. Try a shorter clip.'
   if (m.includes('415') || m.includes('unsupported'))
-    return 'That file type is not supported. Try MP3, WAV, M4A, or WebM.'
+    return 'That file type is not supported. Please upload MP3, WAV, M4A, WebM, OGG, FLAC, or AAC.'
   return "Something didn't work. Please try again."
 }
 

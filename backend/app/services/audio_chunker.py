@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import logging
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+
+import sentry_sdk
+
+logger = logging.getLogger(__name__)
 
 
 def split_audio_to_chunks(
@@ -17,9 +22,22 @@ def split_audio_to_chunks(
     At 64 kbps, a 10-minute chunk ≈ 4.6 MB — safely under Whisper's 25 MB cap.
     """
     if not shutil.which("ffmpeg"):
-        raise RuntimeError("ffmpeg not found — cannot split audio")
+        err = RuntimeError("ffmpeg not found — cannot split audio")
+        logger.error("ffmpeg binary not found on PATH", extra={"filename": filename})
+        sentry_sdk.capture_exception(err)
+        raise err
 
     in_ext = Path(filename).suffix.lower().lstrip(".") or "mp3"
+    size_mb = round(len(content) / (1024 * 1024), 2)
+    logger.info(
+        "audio_chunker: splitting started",
+        extra={"filename": filename, "size_mb": size_mb, "chunk_duration_s": chunk_duration_s},
+    )
+    sentry_sdk.add_breadcrumb(
+        category="audio_chunker",
+        message=f"Splitting {filename} ({size_mb} MB) into {chunk_duration_s}s chunks",
+        level="info",
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
@@ -46,7 +64,13 @@ def split_audio_to_chunks(
 
         if result.returncode != 0:
             stderr = result.stderr.decode(errors="replace")[-600:]
-            raise RuntimeError(f"ffmpeg failed: {stderr}")
+            err = RuntimeError(f"ffmpeg failed: {stderr}")
+            logger.error(
+                "audio_chunker: ffmpeg exited with non-zero code",
+                extra={"filename": filename, "returncode": result.returncode, "stderr_tail": stderr},
+            )
+            sentry_sdk.capture_exception(err)
+            raise err
 
         chunks: list[tuple[int, bytes, str]] = []
         for chunk_path in sorted(tmp.glob("chunk_*.mp3")):
@@ -54,6 +78,22 @@ def split_audio_to_chunks(
             chunks.append((idx, chunk_path.read_bytes(), chunk_path.name))
 
         if not chunks:
-            raise RuntimeError("No audio chunks produced — the file may be empty or invalid")
+            err = RuntimeError("No audio chunks produced — the file may be empty or invalid")
+            logger.error(
+                "audio_chunker: ffmpeg produced no output chunks",
+                extra={"filename": filename, "size_mb": size_mb},
+            )
+            sentry_sdk.capture_exception(err)
+            raise err
 
+        total = len(chunks)
+        logger.info(
+            "audio_chunker: splitting complete",
+            extra={"filename": filename, "total_chunks": total},
+        )
+        sentry_sdk.add_breadcrumb(
+            category="audio_chunker",
+            message=f"Split complete — {total} chunks produced",
+            level="info",
+        )
         return sorted(chunks, key=lambda x: x[0])
