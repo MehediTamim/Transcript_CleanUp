@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -32,6 +33,16 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    if settings.sentry_dsn:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            send_default_pii=True,
+            enable_logs=True,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            profile_session_sample_rate=settings.sentry_profile_session_sample_rate,
+            profile_lifecycle="trace",
+        )
+
     session_path = Path(settings.session_sqlite_path)
     session_path.parent.mkdir(parents=True, exist_ok=True)
     init_session_schema(str(session_path))
@@ -46,6 +57,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router)
+
+    if settings.sentry_dsn:
+
+        @app.get("/sentry-debug")
+        async def trigger_error():
+            _ = 1 / 0
+
     return app
 
 

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     checkpoint_sqlite_path: str = str(_BACKEND_DIR / "data" / "checkpoints.db")
     session_sqlite_path: str = str(_BACKEND_DIR / "data" / "sessions.db")
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 1.0
+    sentry_profile_session_sample_rate: float = 1.0
 
 
 def get_settings() -> Settings:
