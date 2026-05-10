@@ -7,6 +7,7 @@ import logging
 import sentry_sdk
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
+from sentry_sdk import logger as sentry_logger
 
 from app.api.routes.transcribe import _allowed_media_type, _guess_filename
 from app.config import get_settings
@@ -141,9 +142,9 @@ async def audio_chunked_stream(
                 while next_emit in results:
                     chunk_text = results.pop(next_emit)
                     full_parts[next_emit] = chunk_text
-                    logger.info(
-                        "chunked_pipeline: chunk transcribed",
-                        extra={"filename": name, "chunk_idx": next_emit, "total": total, "chars": len(chunk_text)},
+                    sentry_logger.info(
+                        "Chunk transcribed",
+                        attributes={"filename": name, "chunk_idx": next_emit, "total": total, "chars": len(chunk_text)},
                     )
                     yield _sse({"chunk_done": next_emit, "total": total, "text": chunk_text})
                     next_emit += 1
@@ -196,11 +197,9 @@ async def audio_chunked_stream(
                 raw_transcript=full_transcript,
             ):
                 yield _sse({"delta": token})
-            logger.info("chunked_pipeline: pipeline complete", extra={"filename": name})
-            sentry_sdk.add_breadcrumb(
-                category="chunked_pipeline",
-                message="Pipeline complete — transcript formatted and delivered",
-                level="info",
+            sentry_logger.info(
+                "Pipeline complete",
+                attributes={"filename": name, "total_chunks": total},
             )
             yield _sse({"done": True})
         except Exception as e:

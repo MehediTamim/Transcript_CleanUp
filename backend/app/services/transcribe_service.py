@@ -10,6 +10,7 @@ from typing import Any
 
 import sentry_sdk
 from openai import APIError, OpenAI
+from sentry_sdk import logger as sentry_logger
 
 from app.config import Settings
 from app.models.schemas import TranscribeResponse, TranscriptionSegment
@@ -84,9 +85,9 @@ def _to_whisper_compatible(content: bytes, filename: str) -> tuple[bytes, str]:
 
         wav_bytes = out_path.read_bytes()
         wav_name = Path(filename).stem + ".wav"
-        logger.info(
-            "transcribe: conversion success",
-            extra={"original": filename, "converted": wav_name, "size_mb": round(len(wav_bytes) / (1024 * 1024), 2)},
+        sentry_logger.info(
+            "Audio converted to WAV",
+            attributes={"original": filename, "converted": wav_name, "size_mb": round(len(wav_bytes) / (1024 * 1024), 2)},
         )
         return wav_bytes, wav_name
 
@@ -201,13 +202,8 @@ def transcribe_audio_bytes(
     if not text and segments:
         text = " ".join(s.text for s in segments if s.text).strip()
 
-    logger.info(
-        "transcribe: success",
-        extra={"filename": filename, "text_chars": len(text), "segment_count": len(segments)},
-    )
-    sentry_sdk.add_breadcrumb(
-        category="transcribe",
-        message=f"Transcription done — {len(text)} chars, {len(segments)} segments",
-        level="info",
+    sentry_logger.info(
+        "Transcription success",
+        attributes={"filename": filename, "text_chars": len(text), "segment_count": len(segments)},
     )
     return TranscribeResponse(transcript=text, segments=segments)

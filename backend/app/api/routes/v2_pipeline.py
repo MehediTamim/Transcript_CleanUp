@@ -7,6 +7,7 @@ import logging
 import sentry_sdk
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
+from sentry_sdk import logger as sentry_logger
 
 from app.api.routes.transcribe import _allowed_media_type, _guess_filename
 from app.config import get_settings
@@ -120,9 +121,9 @@ async def audio_to_court_stream(
             yield f"data: {json.dumps({'error': 'No speech detected in the audio.'})}\n\n"
             return
 
-        logger.info(
-            "v2_pipeline: transcription success",
-            extra={"filename": name, "text_chars": len(raw_text)},
+        sentry_logger.info(
+            "Transcription success",
+            attributes={"filename": name, "text_chars": len(raw_text)},
         )
         yield f"data: {json.dumps({'stage': 'formatting'})}\n\n"
         sentry_sdk.add_breadcrumb(category="v2_pipeline", message="Stage: formatting", level="info")
@@ -133,11 +134,9 @@ async def audio_to_court_stream(
                 raw_transcript=raw_text,
             ):
                 yield f"data: {json.dumps({'delta': token})}\n\n"
-            logger.info("v2_pipeline: pipeline complete", extra={"filename": name})
-            sentry_sdk.add_breadcrumb(
-                category="v2_pipeline",
-                message="Pipeline complete",
-                level="info",
+            sentry_logger.info(
+                "Pipeline complete",
+                attributes={"filename": name},
             )
             yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception as e:

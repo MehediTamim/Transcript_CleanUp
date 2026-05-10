@@ -1,16 +1,31 @@
+import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import sentry_sdk
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.checkpoint.sqlite import SqliteSaver
+from sentry_sdk import logger as sentry_logger
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from app.api.router import api_router
 from app.config import get_settings, parse_cors_origins
 from app.db.session_store import init_session_schema
 from app.graph.workflow import build_graph
 from app.services.runs_service import RunOrchestrator
+
+# Routes we care about for success logging — skip health checks and debug endpoints.
+_UPLOAD_PREFIXES = ("/api/v2/", "/api/transcribe/")
+
+
+def _before_send_log(record, hint):
+    """Drop health-check and sentry-debug log noise before it reaches Sentry."""
+    msg = getattr(record, "message", "") or ""
+    if "/health" in msg or "/sentry-debug" in msg:
+        return None
+    return record
 
 
 @asynccontextmanager
@@ -41,6 +56,15 @@ def create_app() -> FastAPI:
             traces_sample_rate=settings.sentry_traces_sample_rate,
             profile_session_sample_rate=settings.sentry_profile_session_sample_rate,
             profile_lifecycle="trace",
+            before_send_log=_before_send_log,
+            integrations=[
+                # Forward stdlib logging at INFO+ to Sentry Logs.
+                LoggingIntegration(
+                    level=logging.INFO,        # capture INFO+ as breadcrumbs
+                    event_level=logging.ERROR, # only ERROR+ create Sentry Issues
+                    sentry_logs_level=logging.INFO,  # INFO+ appear under Explore → Logs
+                ),
+            ],
         )
 
     session_path = Path(settings.session_sqlite_path)
@@ -57,6 +81,29 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router)
+
+    @app.middleware("http")
+    async def log_upload_requests(request: Request, call_next):
+        """Log completed upload/pipeline requests to Sentry Logs."""
+        path = request.url.path
+        is_upload = any(path.startswith(p) for p in _UPLOAD_PREFIXES)
+        start = time.perf_counter()
+        response = await call_next(request)
+        if is_upload and settings.sentry_dsn:
+            duration_ms = round((time.perf_counter() - start) * 1000)
+            status = response.status_code
+            level = "info" if status < 400 else "warning" if status < 500 else "error"
+            log_fn = getattr(sentry_logger, level)
+            log_fn(
+                f"HTTP {request.method} {path} → {status}",
+                attributes={
+                    "http.method": request.method,
+                    "http.path": path,
+                    "http.status_code": status,
+                    "duration_ms": duration_ms,
+                },
+            )
+        return response
 
     if settings.sentry_dsn:
 
